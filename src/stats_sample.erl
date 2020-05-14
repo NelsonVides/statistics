@@ -20,11 +20,11 @@
     SampleSize :: non_neg_integer(),
     Res :: sample().
 sample(linear, Fun, SampleSize) when ?is_positive(SampleSize) ->
-    Times = [ time_one_sample(Fun) || _ <- lists:seq(1, SampleSize)],
+    Times = [ stats_helper:time_one_sample(Fun) || _ <- lists:seq(1, SampleSize)],
     calculate_values_given_sample(Times);
 sample(parallel, Fun, SampleSize) ->
-    Processes = [ one_parallel_sample(Fun) || _ <- lists:seq(1, SampleSize)],
-    Times = [ get_time_from_process(Pid, Ref) || {Pid, Ref} <- Processes],
+    Processes = [ stats_helper:one_parallel_sample(Fun) || _ <- lists:seq(1, SampleSize)],
+    Times = [ stats_helper:get_time_from_parallel_sample(Pid, Ref) || {Pid, Ref} <- Processes],
     calculate_values_given_sample(Times).
 
 
@@ -44,38 +44,3 @@ calculate_values_given_sample(Sample) ->
 -spec average([number()]) -> number().
 average(Values) ->
     lists:sum(Values) / length(Values).
-
-%%%'
--spec time_one_sample(fun(() -> any())) -> integer().
-time_one_sample(Fun) ->
-    T1 = erlang:monotonic_time(),
-    _Val = Fun(),
-    T2 = erlang:monotonic_time(),
-    erlang:convert_time_unit(T2 - T1, native, microsecond).
-
--spec one_parallel_sample(fun(() -> any())) -> integer().
-one_parallel_sample(Fun) ->
-    MeasuringFun = fun() ->
-                           T1 = erlang:monotonic_time(),
-                           _Val = Fun(),
-                           T2 = erlang:monotonic_time(),
-                           Time = erlang:convert_time_unit(T2 - T1, native, microsecond),
-                           erlang:exit(Time)
-                   end,
-    {_Pid, _Ref} = spawn_monitor(MeasuringFun).
-
--spec get_time_from_process(pid(), reference()) -> number().
-get_time_from_process(Pid, Ref) ->
-    receive
-        {'DOWN', Ref, process, Pid, Info} ->
-            Info
-    end.
-%%%.
-
-%%%'
-%%% $Id$
-%%% Local Variables:
-%%% mode: erlang
-%%% End:
-%%% vim: set filetype=erlang tabstop=8 foldmarker=%%%',%%%. foldmethod=marker:
-%%%.
