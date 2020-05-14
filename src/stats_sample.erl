@@ -19,10 +19,10 @@
     Fun :: fun(() -> any()),
     SampleSize :: non_neg_integer(),
     Res :: sample().
-sample(linear, Fun, SampleSize) when ?is_positive(SampleSize) ->
+sample(linear, Fun, SampleSize) when is_function(Fun), ?is_positive(SampleSize) ->
     Times = [ stats_helper:time_one_sample(Fun) || _ <- lists:seq(1, SampleSize)],
     calculate_values_given_sample(Times);
-sample(parallel, Fun, SampleSize) ->
+sample(parallel, Fun, SampleSize) when is_function(Fun), ?is_positive(SampleSize) ->
     Processes = [ stats_helper:one_parallel_sample(Fun) || _ <- lists:seq(1, SampleSize)],
     Times = [ stats_helper:get_time_from_parallel_sample(Pid, Ref) || {Pid, Ref} <- Processes],
     calculate_values_given_sample(Times).
