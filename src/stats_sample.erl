@@ -1,6 +1,6 @@
 -module(stats_sample).
 
--export([sample/3]).
+-export([sample/3, calculate_values_given_sample/1]).
 
 -define(is_positive(Num), is_integer(Num) andalso Num > 0).
 
@@ -29,7 +29,7 @@ sample(parallel, Fun, SampleSize) when is_function(Fun), ?is_positive(SampleSize
 
 
 -spec calculate_values_given_sample([number()]) -> sample().
-calculate_values_given_sample(Sample) ->
+calculate_values_given_sample(Sample) when is_list(Sample) ->
     Mean = average(Sample),
     Variance = average([ math:pow(Mean - T, 2) || T <- Sample ]),
     StandardDeviation = math:sqrt(Variance),
