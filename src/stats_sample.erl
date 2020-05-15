@@ -8,9 +8,9 @@
     #{
         min := pos_integer(),
         max := non_neg_integer(),
-        mean := non_neg_integer(),
-        variance := number(),
-        deviation := non_neg_integer()
+        mean := float(),
+        variance := float(),
+        deviation := float()
     }.
 -export_type([sample/0]).
 

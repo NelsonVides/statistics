@@ -13,7 +13,7 @@ time_one_sample(Fun) ->
     T2 = erlang:monotonic_time(),
     erlang:convert_time_unit(T2 - T1, native, microsecond).
 
--spec one_parallel_sample(fun(() -> any())) -> integer().
+-spec one_parallel_sample(fun(() -> any())) -> {pid(), reference()}.
 one_parallel_sample(Fun) ->
     MeasuringFun = fun() ->
                            T1 = erlang:monotonic_time(),
