@@ -14,7 +14,7 @@ realtime_latency_on_load(Fun, JitterSamples, Tolerance)
 
     % Create enough adversarial worker processes to saturate all cores
     Workers = [spawn(fun() -> realtime_worker(Fun) end)
-               || _ <- lists:seq(1, erlang:system_info(logical_processors_available))],
+               || _ <- lists:seq(1, erlang:system_info(schedulers))],
 
     % Gather jitter samples
     Jitters = collect_jitters(JitterSamples, Tolerance),
