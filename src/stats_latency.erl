@@ -10,17 +10,24 @@ realtime_latency_on_load(Fun, JitterSamples, Tolerance)
   when is_function(Fun), ?is_positive(JitterSamples) ->
     % Create a printer process that tries to print regularly
     Me = self(),
-    Printer = spawn(fun() -> realtime_printer(Me, os:system_time()) end),
+    Printer = spawn(fun() -> realtime_printer(Me, erlang:monotonic_time()) end),
 
     % Create enough adversarial worker processes to saturate all cores
     Workers = [spawn(fun() -> realtime_worker(Fun) end)
                || _ <- lists:seq(1, erlang:system_info(schedulers))],
 
     % Gather jitter samples
-    Jitters = collect_jitters(JitterSamples, Tolerance),
+    Jitters = case collect_jitters(JitterSamples, Tolerance) of
+                  {ok, Acc} -> Acc;
+                  {error, no_jitter_received} = Error -> Error
+              end,
     lists:foreach(fun(Pid) -> erlang:exit(Pid, kill) end, [Printer | Workers]),
     FlushedJitters = flush_jitters(),
-    stats_sample:calculate_values_given_sample(Jitters ++ FlushedJitters).
+    case Jitters of
+        {error, _} = Err -> throw(Err);
+        _ ->
+            stats_sample:calculate_values_given_sample(Jitters ++ FlushedJitters)
+    end.
 
 %%%===================================================================
 %%% Helper Functions
@@ -31,27 +38,27 @@ realtime_worker(Fun) ->
     _Val = Fun(),
     realtime_worker(Fun).
 
-% Attempt to run exactly every 100ms, and says how much we were off by.
+% Attempt to run exactly every 100ms, and says how much we were off by, in nanoseconds
 realtime_printer(Pid, LastRan) when is_pid(Pid) ->
     timer:sleep(100),
-    Delta = os:system_time() - LastRan,
-    Jitter = 100000000 - Delta,
-    JitterMs = Jitter / 1000000,
+    DeltaNs = erlang:convert_time_unit(erlang:monotonic_time() - LastRan, native, nanosecond),
+    JitterNs = DeltaNs - 100000000,
+    JitterMs = JitterNs / 1000000,
     ct:pal("Time since last schedule Jitter: ~p ms~n", [abs(JitterMs)]),
     Pid ! {jitter, abs(JitterMs)},
-    realtime_printer(Pid, os:system_time()).
+    realtime_printer(Pid, erlang:monotonic_time()).
 
 collect_jitters(Count, Tolerance) ->
     collect_jitters([], Count, Tolerance).
 
 collect_jitters(Acc, 0, _) ->
-    Acc;
+    {ok, Acc};
 collect_jitters(Acc, Count, Tolerance) ->
     receive
         {jitter, JitterMs} ->
             collect_jitters([JitterMs | Acc], Count - 1, Tolerance)
     after Tolerance ->
-              erlang:throw({error, no_jitter_received})
+              {error, no_jitter_received}
     end.
 
 flush_jitters() ->
